@@ -153,11 +153,7 @@ def subject_accuracy(df: pd.DataFrame) -> pd.DataFrame:
         .rename(columns={"sum": "correct_count", "count": "total"})
     )
     summary["accuracy"] = summary["correct_count"] / summary["total"]
-    summary = (
-        summary.sort_values("accuracy", ascending=False)
-        .reset_index()
-        .rename(columns={"index": "subject"})
-    )
+    summary = summary.sort_values("accuracy", ascending=False).reset_index()
     return summary
 
 

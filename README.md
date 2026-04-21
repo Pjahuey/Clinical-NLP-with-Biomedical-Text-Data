@@ -75,7 +75,7 @@ cd Clinical-NLP-with-Biomedical-Text-Data
 ```bash
 python -m venv venv
 source venv/bin/activate                    # Linux/macOS
-.\venv\Scripts\activate                    # Windows (Command Prompt)
+venv\Scripts\activate.bat                  # Windows (Command Prompt)
 # or: .\venv\Scripts\Activate.ps1         # Windows PowerShell
 ```
 
@@ -168,7 +168,7 @@ Random baseline (4-class uniform): **25.0%**
 ### Figure 1: Model Comparison
 ![Model comparison on validation set](figures/model_comparison.png)
 
-"Figure 1: Model performance comparison on the MedMCQA validation set. Both transformer-based models outperform the random baseline (25%), demonstrating that the model is learning meaningful patterns from biomedical text. BERT shows slightly improved performance over DistilBERT, suggesting benefits from increased model capacity."
+Figure 1: Model performance comparison on the MedMCQA validation set. Both transformer-based models outperform the random baseline (25%), demonstrating that the model is learning meaningful patterns from biomedical text. BERT shows slightly improved performance over DistilBERT, suggesting benefits from increased model capacity.
 
 - Both models perform significantly above the 25% random baseline, confirming successful learning.
 - BERT achieves higher accuracy than DistilBERT, indicating that increased model capacity improves performance.
@@ -177,7 +177,7 @@ Random baseline (4-class uniform): **25.0%**
 ### Figure 2: Subject-wise Accuracy
 ![Subject-wise validation accuracy](figures/subject_accuracy.png)
 
-"Figure 2: Subject-wise model performance across medical domains in the MedMCQA dataset. Accuracy varies across subjects, indicating that model performance depends on domain-specific complexity and representation in the dataset."
+Figure 2: Subject-wise model performance across medical domains in the MedMCQA dataset. Accuracy varies across subjects, indicating that model performance depends on domain-specific complexity and representation in the dataset.
 
 - Performance varies significantly across subjects.
 - Higher accuracy in certain domains suggests stronger representation or simpler patterns.
@@ -186,7 +186,7 @@ Random baseline (4-class uniform): **25.0%**
 ### Figure 3: Error Breakdown
 ![Correct vs incorrect predictions](figures/error_breakdown.png)
 
-"Figure 3: Distribution of correct and incorrect predictions on the validation set. While the model demonstrates strong performance, a substantial number of errors remain, highlighting opportunities for improvement."
+Figure 3: Distribution of correct and incorrect predictions on the validation set. While the model demonstrates strong performance, a substantial number of errors remain, highlighting opportunities for improvement.
 
 - The model achieves a majority of correct predictions but still makes a significant number of errors.
 - Errors indicate limitations in reasoning or domain understanding.
