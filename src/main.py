@@ -98,7 +98,7 @@ def save_config(config: Dict[str, Any], output_dir: str) -> str:
 
 
 def save_model_comparison(results: List[Dict[str, Any]], output_dir: str, figure_dir: str) -> None:
-    """Save model comparison CSV, README placeholders, and bar chart."""
+    """Save model comparison CSV, README placeholders, and comparison figure."""
     if len(results) < 2:
         return
 
@@ -133,15 +133,25 @@ def save_model_comparison(results: List[Dict[str, Any]], output_dir: str, figure
         json.dump(placeholder_payload, f, indent=2)
     print(f"README placeholders saved to: {placeholders_path}")
 
-    plt.figure(figsize=(8, 5))
-    plt.bar(comparison_df["model"], comparison_df["accuracy"])
+    plot_df = comparison_df[["model", "accuracy"]].copy()
+    plot_df = pd.concat(
+        [
+            plot_df,
+            pd.DataFrame([{"model": "random_baseline_25%", "accuracy": 0.25}]),
+        ],
+        ignore_index=True,
+    )
+
+    plt.figure(figsize=(9, 5))
+    colors = ["#1f77b4", "#ff7f0e", "#7f7f7f"]
+    plt.bar(plot_df["model"], plot_df["accuracy"], color=colors[: len(plot_df)])
     plt.ylim(0, 1)
-    plt.xlabel("Model")
-    plt.ylabel("Validation Accuracy")
+    plt.xlabel("Model Name")
+    plt.ylabel("Accuracy")
     plt.title("Model Comparison: Validation Accuracy")
     plt.tight_layout()
 
-    plot_path = os.path.join(figure_dir, "model_comparison_accuracy.png")
+    plot_path = os.path.join(figure_dir, "model_comparison.png")
     plt.savefig(plot_path, dpi=200)
     plt.close()
     print(f"Model comparison figure saved to: {plot_path}")

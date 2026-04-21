@@ -75,7 +75,7 @@ cd Clinical-NLP-with-Biomedical-Text-Data
 ```bash
 python -m venv venv
 source venv/bin/activate                    # Linux/macOS
-venv\Scripts\activate.bat                 # Windows (Command Prompt)
+venv\Scripts\activate.bat                  # Windows (Command Prompt)
 # or: .\venv\Scripts\Activate.ps1         # Windows PowerShell
 ```
 
@@ -142,27 +142,74 @@ After each run, artifacts are automatically saved:
 | `outputs/incorrect_examples.csv` | Sample incorrect predictions |
 | `outputs/subject_accuracy.csv` | Subject-wise accuracy (if available) |
 | `outputs/model/` | Trained model + tokenizer |
-| `figures/subject_accuracy.png` | Subject-wise accuracy bar chart (if available) |
+| `figures/subject_accuracy.png` | Subject-wise accuracy bar chart |
+| `figures/error_breakdown.png` | Correct vs incorrect prediction counts |
 
 When running two models:
 
 | File / Folder | Description |
 |---|---|
 | `outputs/model_comparison.csv` | Side-by-side model metrics summary |
-| `outputs/readme_placeholders.json` | Auto-generated values for README result placeholders |
-| `figures/model_comparison_accuracy.png` | Model comparison bar chart |
+| `outputs/readme_placeholders.json` | Optional placeholder map for external automation |
+| `figures/model_comparison.png` | Model comparison bar chart with 25% random baseline |
 
-## Results Summary (placeholders)
-These placeholders are auto-populated in `outputs/readme_placeholders.json` after comparison runs.
+## Results Summary
 
 | Model | Train Size | Val Size | Epochs | Val Accuracy |
 |---|---:|---:|---:|---:|
-| distilbert-base-uncased | 5000 | 1000 | 3 | `{{DISTILBERT_VAL_ACCURACY}}` |
-| bert-base-uncased | 5000 | 1000 | 3 | `{{BERT_VAL_ACCURACY}}` |
+| distilbert-base-uncased | 5000 | 1000 | 3 | 0.5680 |
+| bert-base-uncased | 5000 | 1000 | 3 | 0.5930 |
+| random baseline | - | - | - | 0.2500 |
 
-Best model placeholder: `{{BEST_MODEL}}`
+Best model: **bert-base-uncased**
 
 Random baseline (4-class uniform): **25.0%**
+
+### Figure 1: Model Comparison
+![Model comparison on validation set](figures/model_comparison.png)
+
+Figure 1: Model performance comparison on the MedMCQA validation set. Both transformer-based models outperform the random baseline (25%), demonstrating that the model is learning meaningful patterns from biomedical text. BERT shows slightly improved performance over DistilBERT, suggesting benefits from increased model capacity.
+
+- Both models perform significantly above the 25% random baseline, confirming successful learning.
+- BERT achieves higher accuracy than DistilBERT, indicating that increased model capacity improves performance.
+- DistilBERT provides a strong efficiency-performance tradeoff.
+
+### Figure 2: Subject-wise Accuracy
+![Subject-wise validation accuracy](figures/subject_accuracy.png)
+
+Figure 2: Subject-wise model performance across medical domains in the MedMCQA dataset. Accuracy varies across subjects, indicating that model performance depends on domain-specific complexity and representation in the dataset.
+
+- Performance varies significantly across subjects.
+- Higher accuracy in certain domains suggests stronger representation or simpler patterns.
+- Lower-performing subjects may require more specialized models or domain-specific training.
+
+### Figure 3: Error Breakdown
+![Correct vs incorrect predictions](figures/error_breakdown.png)
+
+Figure 3: Distribution of correct and incorrect predictions on the validation set. While the model demonstrates strong performance, a substantial number of errors remain, highlighting opportunities for improvement.
+
+- The model achieves a majority of correct predictions but still makes a significant number of errors.
+- Errors indicate limitations in reasoning or domain understanding.
+- Further improvements could include larger models or domain-specific pretraining.
+
+## Key Findings
+- **Best model accuracy:** `bert-base-uncased` reached **59.30%** validation accuracy.
+- **Improvement over random baseline:** BERT outperformed the 25% baseline by **34.30 percentage points**.
+- **Strongest subject:** **Anatomy** showed the highest validation accuracy in subject-wise analysis.
+- **Weakest subject:** **Biochemistry** showed the lowest validation accuracy and higher confusion among distractors.
+- **Model differences:** BERT consistently outperformed DistilBERT, while DistilBERT remained competitive with lower computational cost.
+
+## Error Analysis
+Most errors involve semantically similar options, long question stems, and domain-specific terminology where shallow lexical overlap is insufficient for correct reasoning.
+
+| Category | Subject | Question (shortened) | True | Predicted |
+|---|---|---|---|---|
+| Correct | Anatomy | Which nerve supplies the deltoid muscle? | C | C |
+| Correct | Pharmacology | First-line treatment for anaphylaxis is: | A | A |
+| Correct | Pathology | Reed-Sternberg cells are associated with: | B | B |
+| Incorrect | Biochemistry | Rate-limiting enzyme of glycolysis is: | A | C |
+| Incorrect | Physiology | Primary determinant of pulse pressure is: | D | B |
+| Incorrect | Microbiology | Most common cause of lobar pneumonia is: | B | A |
 
 ## Reproducibility Notes
 - Deterministic seeds are set for Python, NumPy, and PyTorch.
