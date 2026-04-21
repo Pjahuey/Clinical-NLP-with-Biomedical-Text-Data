@@ -116,11 +116,14 @@ def save_model_comparison(results: List[Dict[str, Any]], output_dir: str, figure
         "{{BERT_VAL_ACCURACY}}": None,
         "{{BEST_MODEL}}": None,
     }
+    model_placeholder_map = {
+        "distilbert-base-uncased": "{{DISTILBERT_VAL_ACCURACY}}",
+        "bert-base-uncased": "{{BERT_VAL_ACCURACY}}",
+    }
     for row in results:
-        if row["model"] == "distilbert-base-uncased":
-            placeholder_payload["{{DISTILBERT_VAL_ACCURACY}}"] = round(row["accuracy"], 4)
-        if row["model"] == "bert-base-uncased":
-            placeholder_payload["{{BERT_VAL_ACCURACY}}"] = round(row["accuracy"], 4)
+        placeholder_key = model_placeholder_map.get(row["model"])
+        if placeholder_key is not None:
+            placeholder_payload[placeholder_key] = round(row["accuracy"], 4)
 
     best_model = max(results, key=lambda r: r["accuracy"])["model"]
     placeholder_payload["{{BEST_MODEL}}"] = best_model

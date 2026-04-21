@@ -30,9 +30,7 @@ def resolve_model_name(model_name: str) -> str:
     if normalized not in SUPPORTED_MODELS:
         supported = ", ".join(sorted(set(SUPPORTED_MODELS.values())))
         alias_keys = [key for key, value in SUPPORTED_MODELS.items() if key != value]
-        aliases = ", ".join(
-            sorted(alias_keys)
-        )
+        aliases = ", ".join(sorted(alias_keys))
         raise ValueError(
             "Invalid model name: "
             f"'{model_name}'. Supported models are: {supported}. "

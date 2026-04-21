@@ -117,6 +117,11 @@ def error_analysis(df: pd.DataFrame, n: int = 5) -> Tuple[pd.DataFrame, pd.DataF
     """Return n correct and n incorrect examples for qualitative analysis."""
     correct_df = df[df["correct"]].head(n)
     incorrect_df = df[~df["correct"]].head(n)
+    if len(correct_df) < n or len(incorrect_df) < n:
+        print(
+            f"Requested {n} examples each, but found "
+            f"{len(correct_df)} correct and {len(incorrect_df)} incorrect."
+        )
 
     print("\n" + "=" * 60)
     print(f"ERROR ANALYSIS  –  {n} Correct  |  {n} Incorrect examples")
