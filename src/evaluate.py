@@ -145,7 +145,7 @@ def subject_accuracy(df: pd.DataFrame) -> pd.DataFrame:
     """Compute per-subject accuracy when subject annotations are available."""
     if "subject" not in df.columns or df["subject"].nunique() <= 1:
         print("Subject information not available; skipping subject-wise accuracy.")
-        return pd.DataFrame()
+        return pd.DataFrame(columns=["subject", "correct_count", "total", "accuracy"])
 
     summary = (
         df.groupby("subject")["correct"]
@@ -153,7 +153,11 @@ def subject_accuracy(df: pd.DataFrame) -> pd.DataFrame:
         .rename(columns={"sum": "correct_count", "count": "total"})
     )
     summary["accuracy"] = summary["correct_count"] / summary["total"]
-    summary = summary.sort_values("accuracy", ascending=False)
+    summary = (
+        summary.sort_values("accuracy", ascending=False)
+        .reset_index()
+        .rename(columns={"index": "subject"})
+    )
     return summary
 
 
@@ -163,14 +167,14 @@ def plot_subject_accuracy(subject_df: pd.DataFrame, figure_dir: str) -> Optional
         return None
 
     ensure_dir(figure_dir)
-    top_subjects = subject_df.head(15)
+    sorted_subjects = subject_df.sort_values("accuracy", ascending=False)
 
     plt.figure(figsize=(12, 6))
-    plt.bar(top_subjects.index.astype(str), top_subjects["accuracy"].values)
+    plt.bar(sorted_subjects["subject"].astype(str), sorted_subjects["accuracy"].values)
     plt.xticks(rotation=45, ha="right")
     plt.ylim(0, 1)
-    plt.title("Subject-wise Validation Accuracy (Top 15)")
-    plt.xlabel("Subject")
+    plt.title("Subject-wise Validation Accuracy")
+    plt.xlabel("Medical Subject")
     plt.ylabel("Accuracy")
     plt.tight_layout()
 
@@ -178,6 +182,32 @@ def plot_subject_accuracy(subject_df: pd.DataFrame, figure_dir: str) -> Optional
     plt.savefig(plot_path, dpi=200)
     plt.close()
     print(f"Subject-wise accuracy figure saved to: {plot_path}")
+    return plot_path
+
+
+def plot_error_breakdown(df: pd.DataFrame, figure_dir: str) -> str:
+    """Save a bar chart of correct vs incorrect prediction counts."""
+    ensure_dir(figure_dir)
+
+    correct_count = int(df["correct"].sum())
+    total_count = int(len(df))
+    incorrect_count = total_count - correct_count
+
+    categories = ["Correct", "Incorrect"]
+    counts = [correct_count, incorrect_count]
+    colors = ["#2ca02c", "#d62728"]
+
+    plt.figure(figsize=(7, 5))
+    plt.bar(categories, counts, color=colors)
+    plt.xlabel("Outcome Category")
+    plt.ylabel("Count")
+    plt.title("Validation Prediction Outcome Breakdown")
+    plt.tight_layout()
+
+    plot_path = os.path.join(figure_dir, "error_breakdown.png")
+    plt.savefig(plot_path, dpi=200)
+    plt.close()
+    print(f"Error breakdown figure saved to: {plot_path}")
     return plot_path
 
 
@@ -212,15 +242,16 @@ def run_evaluation(
 
     df = save_predictions(val_dataset, preds, labels, output_dir)
 
-    correct_df, incorrect_df = error_analysis(df, n=5)
+    correct_df, incorrect_df = error_analysis(df, n=3)
     correct_df.to_csv(os.path.join(output_dir, "correct_examples.csv"), index=False)
     incorrect_df.to_csv(os.path.join(output_dir, "incorrect_examples.csv"), index=False)
+    plot_error_breakdown(df, figure_dir)
 
     subj_df = subject_accuracy(df)
+    subj_path = os.path.join(output_dir, "subject_accuracy.csv")
+    subj_df.to_csv(subj_path, index=False)
+    print(f"Subject-wise accuracy saved to: {subj_path}")
     if not subj_df.empty:
-        subj_path = os.path.join(output_dir, "subject_accuracy.csv")
-        subj_df.to_csv(subj_path)
-        print(f"Subject-wise accuracy saved to: {subj_path}")
         plot_subject_accuracy(subj_df, figure_dir)
 
     return metrics
