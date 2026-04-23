@@ -18,6 +18,8 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from transformers import Trainer, TrainingArguments
 
 from src.utils import ensure_dir
+from src.lstm_model import LSTMMultipleChoice
+
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +52,31 @@ def compute_metrics(eval_pred: Tuple[np.ndarray, np.ndarray]) -> Dict[str, float
 # ---------------------------------------------------------------------------
 # Trainer setup
 # ---------------------------------------------------------------------------
+# Add this class ABOVE the build_trainer function
+class LSTMAwareTrainer(Trainer):
+    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
+        labels = inputs.get("labels")
+        outputs = model(
+            input_ids=inputs["input_ids"],
+            attention_mask=inputs["attention_mask"],
+            labels=labels,
+        )
+        loss = outputs.loss
+        return (loss, outputs) if return_outputs else loss
 
+    def prediction_step(self, model, inputs, prediction_loss_only, ignore_keys=None):
+        inputs = self._prepare_inputs(inputs)
+        with torch.no_grad():
+            outputs = model(
+                input_ids=inputs["input_ids"],
+                attention_mask=inputs["attention_mask"],
+                labels=inputs.get("labels"),
+            )
+        loss = outputs.loss
+        logits = outputs.logits
+        labels = inputs.get("labels")
+        return (loss, logits, labels)
+    
 def build_trainer(
     model: Any,
     train_dataset: Any,
@@ -85,8 +111,8 @@ def build_trainer(
         report_to="none",
         fp16=False,  # Disable fp16 for CPU compatibility
     )
-
-    return Trainer(
+    trainer_cls = LSTMAwareTrainer if isinstance(model, LSTMMultipleChoice) else Trainer
+    return trainer_cls(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
@@ -131,5 +157,5 @@ def run_training(
     trainer.save_model(model_save_path)
     tokenizer.save_pretrained(model_save_path)
     print(f"Model and tokenizer saved to: {model_save_path}")
-
     return trainer
+

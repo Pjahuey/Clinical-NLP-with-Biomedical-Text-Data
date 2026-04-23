@@ -1,7 +1,7 @@
 # Final Report: Clinical NLP with Biomedical Text Data
 
 ## Abstract
-This project presents a supervised multi-class text classification NLP algorithm for biomedical question understanding using MedMCQA. We frame multiple-choice medical question answering as a four-class prediction task over answer labels A, B, C, and D. We fine-tune transformer models (DistilBERT and BERT) using deterministic train/validation subsets, standardized tokenization, and reproducible experiment settings. The pipeline produces quantitative metrics, prediction-level artifacts, subject-wise analysis, and comparison outputs to support transparent evaluation. Results show that pretrained transformer encoders provide practical performance for biomedical multiple-choice classification while preserving a modular workflow suitable for further clinical NLP experimentation.
+This project presents a supervised multi-class text classification NLP algorithm for biomedical question understanding using MedMCQA. We frame multiple-choice medical question answering as a four-class prediction task over answer labels A, B, C, and D. We fine-tune transformer models (DistilBERT, BERT, LSTM) using deterministic train/validation subsets, standardized tokenization, and reproducible experiment settings. The pipeline produces quantitative metrics, prediction-level artifacts, subject-wise analysis, and comparison outputs to support transparent evaluation. Results show that pretrained transformer encoders provide practical performance for biomedical multiple-choice classification while preserving a modular workflow suitable for further clinical NLP experimentation.
 
 ## Introduction
 Biomedical NLP systems are increasingly used to support educational and clinical reasoning workflows. Medical multiple-choice question answering is a useful proxy task for measuring domain-specific language understanding, factual recall, and contextual reasoning. In this project, we address MedMCQA as a text classification problem rather than a generative QA task. This framing enables reliable supervised learning and clear metric interpretation.
@@ -32,6 +32,7 @@ Each example is transformed into four (question, option) pairs and tokenized wit
 ### Models
 - `distilbert-base-uncased`
 - `bert-base-uncased`
+- `lstm`
 
 Both are trained through `AutoModelForMultipleChoice` for fair architectural comparison under consistent hyperparameters.
 

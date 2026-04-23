@@ -21,6 +21,7 @@ matplotlib.use("Agg")  # Non-interactive backend for reproducible figure generat
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from src.eda import run_eda
 from src.data import build_datasets
 from src.evaluate import run_evaluation
 from src.model import DEFAULT_MODEL, get_model, get_tokenizer, resolve_model_name
@@ -45,7 +46,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--compare_models",
         action="store_true",
-        help="Run both distilbert-base-uncased and bert-base-uncased for direct comparison",
+        help="Run distilbert-base-uncased, bert-base-uncased and lstm for direct comparison",
     )
     parser.add_argument("--epochs", type=int, default=3, help="Number of training epochs")
     parser.add_argument("--batch_size", type=int, default=8, help="Per-device batch size")
@@ -73,7 +74,7 @@ def parse_args() -> argparse.Namespace:
 def resolve_and_validate_models(model_arg: str, compare_models: bool) -> List[str]:
     """Parse, resolve, and validate the final list of models to run."""
     if compare_models:
-        return ["distilbert-base-uncased", "bert-base-uncased"]
+        return ["distilbert-base-uncased", "bert-base-uncased", "lstm"]
 
     requested = [part.strip() for part in model_arg.split(",") if part.strip()]
     if not requested:
@@ -116,11 +117,13 @@ def save_model_comparison(results: List[Dict[str, Any]], output_dir: str, figure
     placeholder_payload = {
         "{{DISTILBERT_VAL_ACCURACY}}": None,
         "{{BERT_VAL_ACCURACY}}": None,
+        "{{LSTM_VAL_ACCURACY}}": None,
         "{{BEST_MODEL}}": None,
     }
     model_placeholder_map = {
         "distilbert-base-uncased": "{{DISTILBERT_VAL_ACCURACY}}",
         "bert-base-uncased": "{{BERT_VAL_ACCURACY}}",
+        "lstm": "{{LSTM_VAL_ACCURACY}}",
     }
     for row in results:
         placeholder_key = model_placeholder_map.get(row["model"])
@@ -164,7 +167,7 @@ def run_single_model(
 ) -> Dict[str, Any]:
     """Run train+evaluate for one model and return summary metrics."""
     model_output_dir = args.output_dir if not multi_run else os.path.join(args.output_dir, model_name)
-    model_figure_dir = args.figure_dir if not multi_run else os.path.join(args.figure_dir, model_name)
+    model_figure_dir = os.path.join(args.figure_dir, model_name)
 
     ensure_dir(model_output_dir)
     ensure_dir(model_figure_dir)
@@ -195,6 +198,11 @@ def run_single_model(
         max_length=args.max_length,
     )
 
+    run_eda(
+        train_data=train_dataset.data,
+        val_data=val_dataset.data,
+        figure_dir=model_figure_dir,
+    )
     trainer = run_training(
         model=model,
         tokenizer=tokenizer,
