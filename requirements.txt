@@ -1,4 +1,4 @@
-transformers==4.48.0
+transformers==4.42.0
 datasets==2.19.1
 torch==2.6.0
 scikit-learn==1.4.2

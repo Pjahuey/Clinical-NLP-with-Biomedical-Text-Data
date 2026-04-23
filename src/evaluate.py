@@ -92,6 +92,8 @@ def save_predictions(
     rows = []
     for i, (pred, label) in enumerate(zip(preds, labels)):
         example = dataset.data[i]
+        pred_idx = int(pred)
+        true_idx = int(label)
         rows.append(
             {
                 "idx": i,
@@ -100,9 +102,11 @@ def save_predictions(
                 "option_b": example["opb"],
                 "option_c": example["opc"],
                 "option_d": example["opd"],
-                "true_label": LABEL_MAP[int(label)],
-                "pred_label": LABEL_MAP[int(pred)],
-                "correct": int(pred) == int(label),
+                "true_idx": true_idx,
+                "pred_idx": pred_idx,
+                "true_label": LABEL_MAP[true_idx],
+                "pred_label": LABEL_MAP[pred_idx],
+                "correct": pred_idx == true_idx,
                 "subject": example.get("subject_name", ""),
             }
         )
@@ -115,31 +119,17 @@ def save_predictions(
     return df
 
 
-def error_analysis(df: pd.DataFrame, n: int = 5) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Return n correct and n incorrect examples for qualitative analysis."""
-    correct_df = df[df["correct"]].head(n)
-    incorrect_df = df[~df["correct"]].head(n)
-    if len(correct_df) < n or len(incorrect_df) < n:
-        print(
-            f"Requested {n} examples each, but found "
-            f"{len(correct_df)} correct and {len(incorrect_df)} incorrect."
-        )
+def split_examples(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Split full predictions into correct and incorrect subsets."""
+    correct_df = df[df["correct"]].copy()
+    incorrect_df = df[~df["correct"]].copy()
 
     print("\n" + "=" * 60)
-    print(f"ERROR ANALYSIS  –  {n} Correct  |  {n} Incorrect examples")
+    print("ERROR ANALYSIS SUMMARY")
     print("=" * 60)
+    print(f"Correct predictions  : {len(correct_df)}")
+    print(f"Incorrect predictions: {len(incorrect_df)}")
 
-    def _print_examples(subset: pd.DataFrame, tag: str) -> None:
-        print(f"\n--- {tag} ---")
-        for _, row in subset.iterrows():
-            print(f"  Q : {row['question'][:100]}...")
-            print(f"  A : {row['option_a']}  B : {row['option_b']}")
-            print(f"  C : {row['option_c']}  D : {row['option_d']}")
-            print(f"  True: {row['true_label']}  |  Pred: {row['pred_label']}")
-            print()
-
-    _print_examples(correct_df, "CORRECT")
-    _print_examples(incorrect_df, "INCORRECT")
     return correct_df, incorrect_df
 
 
@@ -240,16 +230,15 @@ def run_evaluation(
 
     df = save_predictions(val_dataset, preds, labels, output_dir)
 
-    correct_df, incorrect_df = error_analysis(df, n=3)
+    correct_df, incorrect_df = split_examples(df)
     correct_df.to_csv(os.path.join(output_dir, "correct_examples.csv"), index=False)
     incorrect_df.to_csv(os.path.join(output_dir, "incorrect_examples.csv"), index=False)
-    plot_error_breakdown(df, figure_dir)
 
     subj_df = subject_accuracy(df)
     subj_path = os.path.join(output_dir, "subject_accuracy.csv")
     subj_df.to_csv(subj_path, index=False)
     print(f"Subject-wise accuracy saved to: {subj_path}")
-    if not subj_df.empty:
-        plot_subject_accuracy(subj_df, figure_dir)
+
+    del figure_dir
 
     return metrics

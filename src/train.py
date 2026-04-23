@@ -13,6 +13,7 @@ import os
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
+import pandas as pd
 import torch
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from transformers import Trainer, TrainingArguments
@@ -75,10 +76,8 @@ def build_trainer(
         weight_decay=0.01,
         warmup_ratio=0.1,
         eval_strategy="epoch",
-        save_strategy="epoch",
-        load_best_model_at_end=True,
-        metric_for_best_model="accuracy",
-        greater_is_better=True,
+        save_strategy="no",
+        load_best_model_at_end=False,
         logging_dir=logs_dir,
         logging_steps=50,
         seed=seed,
@@ -111,7 +110,7 @@ def run_training(
     learning_rate: float = 2e-5,
     seed: int = 42,
 ) -> Trainer:
-    """Run training and persist the final model and tokenizer."""
+    """Run training and persist lightweight training logs only."""
     trainer = build_trainer(
         model=model,
         train_dataset=train_dataset,
@@ -126,10 +125,14 @@ def run_training(
     print("\n=== Starting Training ===")
     trainer.train()
 
-    model_save_path = os.path.join(output_dir, "model")
-    ensure_dir(model_save_path)
-    trainer.save_model(model_save_path)
-    tokenizer.save_pretrained(model_save_path)
-    print(f"Model and tokenizer saved to: {model_save_path}")
+    del tokenizer
+
+    log_history = pd.DataFrame(trainer.state.log_history)
+    training_log_path = os.path.join(output_dir, "training_log.csv")
+    if log_history.empty:
+        pd.DataFrame(columns=["epoch", "loss", "eval_accuracy"]).to_csv(training_log_path, index=False)
+    else:
+        log_history.to_csv(training_log_path, index=False)
+    print(f"Training history saved to: {training_log_path}")
 
     return trainer

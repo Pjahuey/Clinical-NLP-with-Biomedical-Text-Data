@@ -16,9 +16,6 @@ import json
 import os
 from typing import Any, Dict, List
 
-import matplotlib
-matplotlib.use("Agg")  # Non-interactive backend for reproducible figure generation
-import matplotlib.pyplot as plt
 import pandas as pd
 
 from src.data import build_datasets
@@ -26,6 +23,7 @@ from src.evaluate import run_evaluation
 from src.model import DEFAULT_MODEL, get_model, get_tokenizer, resolve_model_name
 from src.train import run_training
 from src.utils import ensure_dir, get_device, set_seed
+from src.visualize import generate_all_figures
 
 
 def parse_args() -> argparse.Namespace:
@@ -99,72 +97,47 @@ def save_config(config: Dict[str, Any], output_dir: str) -> str:
     return config_path
 
 
-def save_model_comparison(results: List[Dict[str, Any]], output_dir: str, figure_dir: str) -> None:
-    """Save model comparison CSV, README placeholders, and comparison figure."""
-    if len(results) < 1:
-        return
+def append_model_comparison(results: List[Dict[str, Any]], output_dir: str) -> str:
+    """Append run-level comparison rows to outputs/model_comparison.csv."""
+    if not results:
+        return ""
 
     ensure_dir(output_dir)
-    ensure_dir(figure_dir)
-
-    comparison_df = pd.DataFrame(results)
     comparison_csv = os.path.join(output_dir, "model_comparison.csv")
-    comparison_df.to_csv(comparison_csv, index=False)
-    print(f"Model comparison saved to: {comparison_csv}")
 
-    # Placeholder map for README replacement workflows
-    placeholder_payload = {
-        "{{DISTILBERT_VAL_ACCURACY}}": None,
-        "{{BERT_VAL_ACCURACY}}": None,
-        "{{BEST_MODEL}}": None,
-    }
-    model_placeholder_map = {
-        "distilbert-base-uncased": "{{DISTILBERT_VAL_ACCURACY}}",
-        "bert-base-uncased": "{{BERT_VAL_ACCURACY}}",
-    }
-    for row in results:
-        placeholder_key = model_placeholder_map.get(row["model"])
-        if placeholder_key is not None:
-            placeholder_payload[placeholder_key] = round(row["accuracy"], 4)
-
-    best_model = max(results, key=lambda r: r["accuracy"])["model"]
-    placeholder_payload["{{BEST_MODEL}}"] = best_model
-
-    placeholders_path = os.path.join(output_dir, "readme_placeholders.json")
-    with open(placeholders_path, "w", encoding="utf-8") as f:
-        json.dump(placeholder_payload, f, indent=2)
-    print(f"README placeholders saved to: {placeholders_path}")
-
-    plot_df = comparison_df[["model", "accuracy"]].copy()
-    plot_df = pd.concat(
+    new_rows = pd.DataFrame(
         [
-            plot_df,
-            pd.DataFrame([{"model": "random_baseline_25%", "accuracy": 0.25}]),
-        ],
-        ignore_index=True,
+            {
+                "model_name": row["model_name"],
+                "accuracy": row["accuracy"],
+                "train_size": row["train_size"],
+                "val_size": row["val_size"],
+            }
+            for row in results
+        ]
     )
 
-    plt.figure(figsize=(9, 5))
-    colors = ["#1f77b4", "#ff7f0e", "#7f7f7f"]
-    plt.bar(plot_df["model"], plot_df["accuracy"], color=colors[: len(plot_df)])
-    plt.ylim(0, 1)
-    plt.xlabel("Model Name")
-    plt.ylabel("Accuracy")
-    plt.title("Model Comparison: Validation Accuracy")
-    plt.tight_layout()
+    if os.path.exists(comparison_csv):
+        existing = pd.read_csv(comparison_csv)
+        combined = pd.concat([existing, new_rows], ignore_index=True)
+    else:
+        combined = new_rows
 
-    plot_path = os.path.join(figure_dir, "model_comparison.png")
-    plt.savefig(plot_path, dpi=200)
-    plt.close()
-    print(f"Model comparison figure saved to: {plot_path}")
+    combined = combined[["model_name", "accuracy", "train_size", "val_size"]]
+    combined.to_csv(comparison_csv, index=False)
+    print(f"Model comparison appended to: {comparison_csv}")
+    return comparison_csv
 
 
 def run_single_model(
     model_name: str, args: argparse.Namespace, device: Any, multi_run: bool
 ) -> Dict[str, Any]:
     """Run train+evaluate for one model and return summary metrics."""
-    model_output_dir = args.output_dir if not multi_run else os.path.join(args.output_dir, model_name)
-    model_figure_dir = args.figure_dir if not multi_run else os.path.join(args.figure_dir, model_name)
+    del multi_run
+
+    # Always keep a per-model output structure for reproducibility and organization.
+    model_output_dir = os.path.join(args.output_dir, model_name)
+    model_figure_dir = args.figure_dir
 
     ensure_dir(model_output_dir)
     ensure_dir(model_figure_dir)
@@ -216,12 +189,20 @@ def run_single_model(
         device=device,
     )
 
+    generate_all_figures(
+        model_output_dir=model_output_dir,
+        outputs_root=args.output_dir,
+        figure_dir=model_figure_dir,
+    )
+
     return {
-        "model": model_name,
+        "model_name": model_name,
         "accuracy": metrics["accuracy"],
         "precision_macro": metrics["precision_macro"],
         "recall_macro": metrics["recall_macro"],
         "f1_macro": metrics["f1_macro"],
+        "train_size": args.train_size,
+        "val_size": args.val_size,
         "output_dir": model_output_dir,
     }
 
@@ -278,11 +259,17 @@ def main() -> None:
             raise SystemExit(f"Configuration error: {exc}") from exc
         all_results.append(result)
 
-    save_model_comparison(all_results, args.output_dir, args.figure_dir)
+    comparison_csv = append_model_comparison(all_results, args.output_dir)
+    if comparison_csv:
+        generate_all_figures(
+            model_output_dir="",
+            outputs_root=args.output_dir,
+            figure_dir=args.figure_dir,
+        )
 
     print("\n" + "=" * 70)
     for row in all_results:
-        print(f"  {row['model']}: accuracy={row['accuracy'] * 100:.2f}%")
+        print(f"  {row['model_name']}: accuracy={row['accuracy'] * 100:.2f}%")
     print("=" * 70)
     print(f"\nAll outputs saved under: {os.path.abspath(args.output_dir)}")
     print(f"All figures saved under: {os.path.abspath(args.figure_dir)}")

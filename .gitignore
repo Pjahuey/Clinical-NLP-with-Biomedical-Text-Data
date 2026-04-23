@@ -17,9 +17,11 @@ env/
 # Jupyter Notebooks checkpoints
 .ipynb_checkpoints/
 
-# Model checkpoints and large output files
-outputs/
-!outputs/.gitkeep
+# Model checkpoints and large weights
+checkpoints/
+*.pt
+*.bin
+*.safetensors
 
 # Data downloads (large files)
 data/
