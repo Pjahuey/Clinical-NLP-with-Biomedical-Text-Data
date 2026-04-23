@@ -159,29 +159,6 @@ def subject_accuracy(df: pd.DataFrame) -> pd.DataFrame:
     return summary
 
 
-def plot_subject_accuracy(subject_df: pd.DataFrame, figure_dir: str) -> Optional[str]:
-    """Save subject-wise accuracy bar chart and return the file path."""
-    if subject_df.empty:
-        return None
-
-    ensure_dir(figure_dir)
-    sorted_subjects = subject_df.sort_values("accuracy", ascending=False)
-
-    plt.figure(figsize=(12, 6))
-    plt.bar(sorted_subjects["subject"].astype(str), sorted_subjects["accuracy"].values)
-    plt.xticks(rotation=45, ha="right")
-    plt.ylim(0, 1)
-    plt.title("Subject-wise Validation Accuracy")
-    plt.xlabel("Medical Subject")
-    plt.ylabel("Accuracy")
-    plt.tight_layout()
-
-    plot_path = os.path.join(figure_dir, "subject_accuracy.png")
-    plt.savefig(plot_path, dpi=200)
-    plt.close()
-    print(f"Subject-wise accuracy figure saved to: {plot_path}")
-    return plot_path
-
 
 def plot_error_breakdown(df: pd.DataFrame, figure_dir: str) -> str:
     """Save a bar chart of correct vs incorrect prediction counts."""
@@ -303,7 +280,7 @@ def plot_attention_heatmap(
                 output_attentions=True,
             )
 
-        if not hasattr(outputs, "attentions") or outputs.attentions is None:
+        if not hasattr(outputs, "attentions") or len(outputs.attentions) == 0:
             print("Model does not return attentions — skipping heatmap.")
             return
 
