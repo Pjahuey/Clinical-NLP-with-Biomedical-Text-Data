@@ -66,31 +66,29 @@ project_root/
 | **Pascual Jahuey** | Model setup, training pipeline, experiment execution, full integration (`src/model.py`, `src/train.py`, `src/main.py`) |
 | **Riley Bendure** | LSTM baseline, evaluation, EDA, error analysis, figures/tables, tokenization docs, README polish (`src/evaluate.py`, `src/lstm_model.py`,`src/eda.py`) |
 
-## Neural Modeling Approches
+## Neural Modeling Approaches
 
-LSTM Baseline (required)
-Architecture: Bidirectional LSTM, 2 layers, hidden size 256, embedding dim 128
-Tokenizer: BERT WordPiece tokenizer (vocab size 30,522) — shared with transformer models
-Embeddings: Learned from scratch via nn.Embedding
-Unknown tokens: Handled by BERT's [UNK] token (id=100)
-Padding: Packed sequences used during forward pass to ignore padding
-Prediction head: Linear(hidden_dim * 2, 1) per choice, mean-pooled LSTM output
+### LSTM Baseline
+| Architecture | Tokenizer | Embeddings | Unknown Tokens | Padding | Prediction Head |
+|---|---|---|---|---|---|
+| Bidirectional LSTM, 2 layers, hidden size 256, embedding dim 128 | BERT WordPiece tokenizer, vocab size 30,522 | Learned from scratch with `nn.Embedding` | BERT `[UNK]` token, id 100 | Packed sequences ignore padding during the forward pass | `Linear(hidden_dim * 2, 1)` per choice over mean-pooled LSTM output |
 
-Pretrained Transformer Models (Required)
-DistilBERT: distilbert-base-uncased — compressed BERT, 6 layers, 66M parameters
-BERT: bert-base-uncased — 12 layers, 110M parameters
-Tokenizer: WordPiece, padding="max_length", truncation=True, max_length=128
-Fine-tuning: AutoModelForMultipleChoice with AdamW optimizer
+### Pretrained Transformer Models
+| Model | Layers | Parameters | Tokenizer | Fine-tuning |
+|---|---:|---:|---|---|
+| `distilbert-base-uncased` | 6 | 66M | WordPiece, `padding="max_length"`, truncation, max length 128 | `AutoModelForMultipleChoice` with AdamW optimizer |
+| `bert-base-uncased` | 12 | 110M | WordPiece, `padding="max_length"`, truncation, max length 128 | `AutoModelForMultipleChoice` with AdamW optimizer |
 
-Hyperparameters (All Models)
-PARAMETER       VALUE
-Learning rate   2e-5
-Batch size      8
-Epochs          3
-Max sequence length     128
-Warmup ratio    0.1
-Weight decay    0.01
-Seed            42
+### Hyperparameters
+| Parameter | Value |
+|---|---:|
+| Learning rate | `2e-5` |
+| Batch size | `8` |
+| Epochs | `3` |
+| Max sequence length | `128` |
+| Warmup ratio | `0.1` |
+| Weight decay | `0.01` |
+| Seed | `42` |
 
 ## Clinical Context
 MedMCQA covers 21 medical subjects (anatomy, pathology, pharmacology, surgery, etc.). This project explores biomedical reasoning in a structured classification setting useful for educational decision support and benchmark-oriented clinical NLP evaluation.
@@ -238,6 +236,14 @@ The normalized confusion matrix shows where the best available run confuses answ
 
 The true labels are not perfectly balanced, and the model predicts choice D more often than it appears in the validation labels. This suggests a mild answer-choice bias that should be considered when interpreting aggregate accuracy.
 
+## Synthesis of Findings
+- BERT improves over the 25% random baseline by 5.7 percentage points, which is meaningful but modest given its larger capacity.
+- All neural models exceed the random baseline, confirming that the models learn signal from the biomedical question-answer pairs rather than guessing uniformly.
+- The narrow BERT vs DistilBERT gap suggests that model capacity alone is not the main constraint in this setup.
+- Confusion-matrix structure and answer-choice bias show systematic errors, especially plausible distractor selection and overprediction of answer choice D.
+- Subject-wise variation, especially small-n subjects such as Psychiatry, should be interpreted cautiously because a few examples can strongly affect accuracy.
+- Overall, performance appears constrained by biomedical domain difficulty, limited subset size, and answer-choice ambiguity more than by implementation mechanics.
+
 ## Quick Advanced Analysis
 
 ![Prediction distribution](figures/prediction_distribution.png)
@@ -269,6 +275,15 @@ Most errors involve semantically similar options, negation questions ("which is 
 - Subset selection uses deterministic indexing (`select(range(N))`).
 - Run settings are saved to `config.json` for each execution.
 - Output and figure directories are created automatically.
+
+Current submitted HiperGator result artifacts are preserved at the repository root so the analysis scripts can read the same CSV/JSON files used for the report. Future generated run artifacts should be written under `outputs/`, which is ignored by Git except for its placeholder.
+
+## What This Project Demonstrates
+- A complete supervised biomedical text classification workflow using MedMCQA as a four-class MCQA benchmark.
+- A direct comparison between a learned-from-scratch LSTM baseline and pretrained transformer multiple-choice models.
+- Reproducible experiment configuration, deterministic subset selection, and report-ready artifact generation.
+- Model behavior analysis beyond raw accuracy, including confusion patterns, subject-level variation, answer-choice bias, and representative errors.
+- Evidence that general-domain pretrained models remain limited on biomedical MCQA without domain-specific pretraining or larger task-specific training.
 
 ## Limitations
 - Accuracy depends on the selected subset size, number of epochs, and model choice.

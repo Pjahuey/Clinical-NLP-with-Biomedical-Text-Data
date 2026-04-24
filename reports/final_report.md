@@ -40,7 +40,9 @@ DistilBERT and BERT are trained through `AutoModelForMultipleChoice`. The LSTM b
 Training uses the Hugging Face `Trainer` API with deterministic seeding for Python, NumPy, and PyTorch. Configuration is saved to `outputs/config.json` at runtime. The pipeline validates model names and subset sizes, and automatically creates output folders.
 
 ## Results
-The strongest available run is BERT-base-uncased at 30.7% validation accuracy, compared with 30.3% for DistilBERT and a 25.0% random baseline. BERT therefore improves over chance by about 5.7 percentage points, while DistilBERT improves by about 5.3 points. The absolute accuracy remains modest, which is expected for medical multiple-choice reasoning with limited training examples and short fine-tuning.
+The strongest available run is BERT-base-uncased at 30.7% validation accuracy, compared with 30.3% for DistilBERT and a 25.0% random baseline. BERT therefore improves over chance by about 5.7 percentage points, while DistilBERT improves by about 5.3 points. This is a meaningful improvement over random guessing, but it is also modest in absolute terms.
+
+The result should be interpreted as evidence of partial learned signal, not as model failure or clinical readiness. General-domain BERT does not include biomedical domain pretraining, and the task requires distinguishing plausible medical distractors with limited fine-tuning data. The small BERT-DistilBERT gap suggests that performance is constrained more by biomedical task complexity, answer-choice ambiguity, and training scale than by model capacity alone.
 
 ![Model comparison delta](../figures/model_comparison_delta.png)
 
@@ -86,11 +88,24 @@ Common observed error patterns in this setup include:
 ## Discussion
 This project demonstrates that biomedical multiple-choice QA can be implemented as a clear text classification workflow with reusable components and reproducible outputs. The approach balances practicality and interpretability: each prediction corresponds to one of four explicit classes, and outputs are structured for auditing. Comparing transformer models against an LSTM baseline supports discussion of the trade-off between pretrained contextual representations and a simpler recurrent architecture.
 
+Biomedical NLP is difficult because clinically oriented questions often contain specialized terminology, dense stems, negation, and answer choices that are intentionally plausible distractors. The observed confusion patterns and answer-choice bias are therefore useful diagnostic signals: errors are structured, not simply random, and they point to areas where domain knowledge and calibration matter.
+
+The results do not demonstrate clinical reasoning capability or deployability. This is a benchmark-oriented course project that evaluates model behavior on a supervised MCQA formulation. The modest accuracy suggests that stronger biomedical pretraining, larger training scale, and deeper error analysis are necessary before drawing broader conclusions about medical language understanding.
+
 ## Limitations
-- Current experiments rely on configurable subsets rather than full MedMCQA training scale.
+- Current experiments rely on configurable subsets rather than full MedMCQA training scale, limiting the amount of task-specific signal available during fine-tuning.
+- General-domain pretraining is a limitation for biomedical language because BERT and DistilBERT are not specialized for clinical terminology or medical reasoning.
+- Small-n subject metrics are statistically unstable; for example, Psychiatry has only n=3 validation examples and should not be overinterpreted.
 - The LSTM baseline is included, but its learned-from-scratch embeddings limit performance relative to pretrained transformer encoders.
 - Metrics are validation-focused and do not include full held-out test benchmarking.
-- Clinical deployment conclusions are limited because this is a course project benchmark study, not a patient-care system validation.
+- Clinical deployment conclusions are not supported because this is a course benchmark study, not a patient-care system validation.
+
+## Future Work
+- Evaluate biomedical-pretrained encoders such as BioBERT, ClinicalBERT, PubMedBERT, or related domain-specific transformer models.
+- Train on a larger or full MedMCQA subset to test whether additional task-specific supervision improves reasoning over plausible distractors.
+- Run systematic hyperparameter sweeps over learning rate, warmup ratio, weight decay, batch size, and maximum sequence length.
+- Expand domain-specific error analysis and targeted data augmentation for negation questions, rare terminology, and low-performing subjects.
+- Explore ensemble or calibration methods that combine recurrent and transformer predictions or reduce answer-choice bias.
 
 ## Conclusion
 The repository now provides a polished, submission-ready biomedical NLP project centered on a supervised four-class text classification algorithm over MedMCQA. It includes clear setup and execution steps, robust artifact generation, reproducible experiment configuration, model comparison support, and structured reporting outputs suitable for graduate coursework submission.
