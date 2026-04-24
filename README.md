@@ -186,9 +186,11 @@ After each run, artifacts are automatically saved:
 | `figures/<model>/eda` | EDA figures |
 | `figures/model_comparison_delta.png` | Accuracy improvement over the 25% random baseline |
 | `figures/top_bottom_subjects.png` | Highest and lowest subject accuracies with sample sizes |
+| `figures/accuracy_by_answer_choice.png` | Accuracy split by true answer choice |
 | `figures/accuracy_vs_sample_size.png` | Subject accuracy reliability by sample size |
 | `figures/confusion_matrix.png` | Normalized A/B/C/D confusion matrix from existing predictions |
 | `figures/prediction_distribution.png` | True vs predicted answer-choice distribution |
+| `reports/error_analysis_table.md` | Representative incorrect examples with likely error types |
 
 When running two models:
 
@@ -235,6 +237,20 @@ The normalized confusion matrix shows where the best available run confuses answ
 ![Prediction distribution](figures/prediction_distribution.png)
 
 The true labels are not perfectly balanced, and the model predicts choice D more often than it appears in the validation labels. This suggests a mild answer-choice bias that should be considered when interpreting aggregate accuracy.
+
+## Quick Advanced Analysis
+
+![Prediction distribution](figures/prediction_distribution.png)
+
+![Accuracy by answer choice](figures/accuracy_by_answer_choice.png)
+
+![Top and bottom subjects](figures/top_bottom_subjects.png)
+
+- The model overpredicts answer choice D relative to the validation labels: 279 D predictions vs 196 true D labels.
+- Accuracy by true answer choice is highest for D at 35.7% and lowest for B at 28.1%.
+- Using `subject_accuracy.csv`, the strongest subjects are Psychiatry, Anaesthesia, ENT, Physiology, and Ophthalmology.
+- The weakest subjects are Orthopaedics, Skin, Microbiology, Pathology, and Radiology, with the very small n subjects requiring caution.
+- The representative incorrect examples suggest common issues with negation wording, dense clinical stems, and plausible medical distractors. See [reports/error_analysis_table.md](reports/error_analysis_table.md).
 
 ## Error Analysis
 Most errors involve semantically similar options, negation questions ("which is NOT true"), long question stems, and rare medical terminology where shallow lexical overlap is insufficient for correct reasoning.
