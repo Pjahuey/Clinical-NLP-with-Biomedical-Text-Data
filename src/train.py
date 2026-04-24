@@ -10,6 +10,10 @@ Handles:
 """
 
 import os
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
@@ -18,6 +22,17 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from transformers import Trainer, TrainingArguments
 
 from src.utils import ensure_dir
+from src.lstm_model import LSTMMultipleChoice
+
+if not hasattr(torch.optim.Optimizer, "train"):
+    torch.optim.Optimizer.train = lambda self: None
+if not hasattr(torch.optim.Optimizer, "eval"):
+    torch.optim.Optimizer.eval = lambda self: None
+if not hasattr(torch.optim.AdamW, "train"):
+    torch.optim.AdamW.train = lambda self: None
+if not hasattr(torch.optim.AdamW, "eval"):
+    torch.optim.AdamW.eval = lambda self: None
+
 
 
 # ---------------------------------------------------------------------------
@@ -50,6 +65,72 @@ def compute_metrics(eval_pred: Tuple[np.ndarray, np.ndarray]) -> Dict[str, float
 # ---------------------------------------------------------------------------
 # Trainer setup
 # ---------------------------------------------------------------------------
+# Add this class ABOVE the build_trainer function
+class LSTMAwareTrainer(Trainer):
+    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
+        labels = inputs.get("labels")
+        outputs = model(
+            input_ids=inputs["input_ids"],
+            attention_mask=inputs["attention_mask"],
+            labels=labels,
+        )
+        loss = outputs.loss
+        return (loss, outputs) if return_outputs else loss
+
+    def prediction_step(self, model, inputs, prediction_loss_only, ignore_keys=None):
+        inputs = self._prepare_inputs(inputs)
+        with torch.no_grad():
+            outputs = model(
+                input_ids=inputs["input_ids"],
+                attention_mask=inputs["attention_mask"],
+                labels=inputs.get("labels"),
+            )
+        loss = outputs.loss
+        logits = outputs.logits
+        labels = inputs.get("labels")
+        return (loss, logits, labels)
+# ← LSTMAwareTrainer class ends here, no indent below
+
+def plot_training_curves(trainer: Trainer, figure_dir: str) -> None:
+    """Save train and validation loss curves from trainer log history."""
+    ensure_dir(figure_dir)
+    log_history = trainer.state.log_history
+    train_steps, train_losses = [], []
+    val_epochs, val_losses = [], []
+    for entry in log_history:
+        if "loss" in entry and "eval_loss" not in entry:
+            train_steps.append(entry["step"])
+            train_losses.append(entry["loss"])
+        if "eval_loss" in entry:
+            val_epochs.append(entry["epoch"])
+            val_losses.append(entry["eval_loss"])
+    plt.figure(figsize=(9, 5))
+    plt.plot(train_steps, train_losses, label="Train Loss", color="#1f77b4", alpha=0.8)
+    if val_losses:
+        max_step = max(train_steps) if train_steps else 1
+        max_epoch = max(val_epochs) if val_epochs else 1
+        val_steps = [e / max_epoch * max_step for e in val_epochs]
+        plt.plot(val_steps, val_losses, label="Val Loss", color="#d62728",
+                 marker="o", linewidth=2)
+        for step, loss in zip(val_steps, val_losses):
+            plt.annotate(f"{loss:.4f}", xy=(step, loss),
+                        xytext=(5, 5), textcoords="offset points",
+                        fontsize=8, color="#d62728", fontweight="bold")
+    # Annotate final train loss
+    if train_steps:
+        plt.annotate(f"{train_losses[-1]:.4f}",
+                    xy=(train_steps[-1], train_losses[-1]),
+                    xytext=(5, 5), textcoords="offset points",
+                    fontsize=8, color="#1f77b4", fontweight="bold")
+    plt.xlabel("Training Steps")
+    plt.ylabel("Loss")
+    plt.title("Training and Validation Loss Curves")
+    plt.legend()
+    plt.tight_layout()
+    plot_path = os.path.join(figure_dir, "training_curves.png")
+    plt.savefig(plot_path, dpi=200)
+    plt.close()
+    print(f"Training curves saved to: {plot_path}")
 
 def build_trainer(
     model: Any,
@@ -85,8 +166,8 @@ def build_trainer(
         report_to="none",
         fp16=False,  # Disable fp16 for CPU compatibility
     )
-
-    return Trainer(
+    trainer_cls = LSTMAwareTrainer if isinstance(model, LSTMMultipleChoice) else Trainer
+    return trainer_cls(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
@@ -106,6 +187,7 @@ def run_training(
     train_dataset: Any,
     val_dataset: Any,
     output_dir: str = "outputs",
+    figure_dir: str = "figures",
     num_epochs: int = 3,
     batch_size: int = 8,
     learning_rate: float = 2e-5,
@@ -131,5 +213,9 @@ def run_training(
     trainer.save_model(model_save_path)
     tokenizer.save_pretrained(model_save_path)
     print(f"Model and tokenizer saved to: {model_save_path}")
-
+    plot_training_curves(trainer, figure_dir)
     return trainer
+
+
+
+

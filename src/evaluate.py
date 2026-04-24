@@ -159,23 +159,49 @@ def subject_accuracy(df: pd.DataFrame) -> pd.DataFrame:
     return summary
 
 
+
+def plot_error_breakdown(df: pd.DataFrame, figure_dir: str) -> str:
+    """Save a bar chart of correct vs incorrect prediction counts."""
+    ensure_dir(figure_dir)
+    correct_count = int(df["correct"].sum())
+    total_count = int(len(df))
+    incorrect_count = total_count - correct_count
+    categories = ["Correct", "Incorrect"]
+    counts = [correct_count, incorrect_count]
+    colors = ["#2ca02c", "#d62728"]
+    plt.figure(figsize=(7, 5))
+    bars = plt.bar(categories, counts, color=colors)
+    for bar, count in zip(bars, counts):
+        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 5,
+                 str(count), ha="center", va="bottom", fontweight="bold")
+    plt.xlabel("Outcome Category")
+    plt.ylabel("Count")
+    plt.title("Validation Prediction Outcome Breakdown")
+    plt.tight_layout()
+    plot_path = os.path.join(figure_dir, "error_breakdown.png")
+    plt.savefig(plot_path, dpi=200)
+    plt.close()
+    print(f"Error breakdown figure saved to: {plot_path}")
+    return plot_path
+
+
 def plot_subject_accuracy(subject_df: pd.DataFrame, figure_dir: str) -> Optional[str]:
     """Save subject-wise accuracy bar chart and return the file path."""
     if subject_df.empty:
         return None
-
     ensure_dir(figure_dir)
     sorted_subjects = subject_df.sort_values("accuracy", ascending=False)
-
     plt.figure(figsize=(12, 6))
-    plt.bar(sorted_subjects["subject"].astype(str), sorted_subjects["accuracy"].values)
+    bars = plt.bar(sorted_subjects["subject"].astype(str), sorted_subjects["accuracy"].values)
+    for bar, acc in zip(bars, sorted_subjects["accuracy"].values):
+        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
+                 f"{acc:.2f}", ha="center", va="bottom", fontsize=8, fontweight="bold")
     plt.xticks(rotation=45, ha="right")
-    plt.ylim(0, 1)
+    plt.ylim(0, 1.1)
     plt.title("Subject-wise Validation Accuracy")
     plt.xlabel("Medical Subject")
     plt.ylabel("Accuracy")
     plt.tight_layout()
-
     plot_path = os.path.join(figure_dir, "subject_accuracy.png")
     plt.savefig(plot_path, dpi=200)
     plt.close()
@@ -183,31 +209,116 @@ def plot_subject_accuracy(subject_df: pd.DataFrame, figure_dir: str) -> Optional
     return plot_path
 
 
-def plot_error_breakdown(df: pd.DataFrame, figure_dir: str) -> str:
-    """Save a bar chart of correct vs incorrect prediction counts."""
+def plot_confusion_matrix(preds: np.ndarray, labels: np.ndarray, figure_dir: str) -> str:
+    """Save a confusion matrix figure."""
+    from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
     ensure_dir(figure_dir)
-
-    correct_count = int(df["correct"].sum())
-    total_count = int(len(df))
-    incorrect_count = total_count - correct_count
-
-    categories = ["Correct", "Incorrect"]
-    counts = [correct_count, incorrect_count]
-    colors = ["#2ca02c", "#d62728"]
-
-    plt.figure(figsize=(7, 5))
-    plt.bar(categories, counts, color=colors)
-    plt.xlabel("Outcome Category")
-    plt.ylabel("Count")
-    plt.title("Validation Prediction Outcome Breakdown")
+    cm = confusion_matrix(labels, preds)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["A", "B", "C", "D"])
+    fig, ax = plt.subplots(figsize=(7, 6))
+    disp.plot(ax=ax, colorbar=True, cmap="Blues")
+    ax.set_title("Confusion Matrix – Validation Set")
     plt.tight_layout()
-
-    plot_path = os.path.join(figure_dir, "error_breakdown.png")
+    plot_path = os.path.join(figure_dir, "confusion_matrix.png")
     plt.savefig(plot_path, dpi=200)
     plt.close()
-    print(f"Error breakdown figure saved to: {plot_path}")
+    print(f"Confusion matrix saved to: {plot_path}")
     return plot_path
 
+
+def plot_attention_heatmap(
+    model: Any,
+    dataset: Any,
+    tokenizer: Any,
+    figure_dir: str,
+    device: Optional[torch.device] = None,
+    n_examples: int = 3,
+) -> None:
+    """
+    Save attention heatmaps for n_examples from the validation set.
+    Only runs for transformer models that return attentions.
+    """
+    from src.lstm_model import LSTMMultipleChoice
+    if isinstance(model, LSTMMultipleChoice):
+        print("Skipping attention heatmap — not applicable for LSTM.")
+        return
+
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    ensure_dir(figure_dir)
+    model.eval()
+    model.to(device)
+
+    for idx in range(min(n_examples, len(dataset))):
+        example = dataset.data[idx]
+        question = example["question"]
+        options = [example["opa"], example["opb"], example["opc"], example["opd"]]
+        true_label = int(example["cop"])
+
+        # Tokenize the correct answer pair
+        encoding = tokenizer(
+            question,
+            options[true_label],
+            return_tensors="pt",
+            max_length=128,
+            truncation=True,
+            padding="max_length",
+        )
+
+        input_ids = encoding["input_ids"].to(device)
+        attention_mask = encoding["attention_mask"].to(device)
+
+        # Need to reshape for multiple choice format (batch, num_choices, seq_len)
+        input_ids_mc = input_ids.unsqueeze(0).expand(1, 4, -1)
+        attention_mask_mc = attention_mask.unsqueeze(0).expand(1, 4, -1)
+
+        with torch.no_grad():
+            outputs = model(
+                input_ids=input_ids_mc,
+                attention_mask=attention_mask_mc,
+                output_attentions=True,
+            )
+
+        if not hasattr(outputs, "attentions") or len(outputs.attentions) == 0:
+            print("Model does not return attentions — skipping heatmap.")
+            return
+
+        # Average attention across all heads in the last layer
+        # attentions shape: (num_layers, batch, num_heads, seq_len, seq_len)
+        last_layer_attn = outputs.attentions[-1]  # (1, num_heads, seq_len, seq_len)
+        avg_attn = last_layer_attn[0].mean(dim=0).cpu().numpy()  # (seq_len, seq_len)
+
+        # Get tokens for x/y axis labels
+        tokens = tokenizer.convert_ids_to_tokens(input_ids[0].cpu().numpy())
+        # Trim to non-padding tokens
+        seq_len = int(attention_mask[0].sum().item())
+        tokens = tokens[:seq_len]
+        avg_attn = avg_attn[:seq_len, :seq_len]
+
+        # Shorten long token lists for readability
+        max_display = 30
+        if len(tokens) > max_display:
+            tokens = tokens[:max_display]
+            avg_attn = avg_attn[:max_display, :max_display]
+
+        fig, ax = plt.subplots(figsize=(12, 10))
+        im = ax.imshow(avg_attn, cmap="Blues")
+        ax.set_xticks(range(len(tokens)))
+        ax.set_yticks(range(len(tokens)))
+        ax.set_xticklabels(tokens, rotation=90, fontsize=7)
+        ax.set_yticklabels(tokens, fontsize=7)
+        plt.colorbar(im, ax=ax)
+        ax.set_title(
+            f"Attention Heatmap – Example {idx + 1}\n"
+            f"Q: {question[:60]}...\nTrue: {LABEL_MAP[true_label]}",
+            fontsize=9,
+        )
+        plt.tight_layout()
+        plot_path = os.path.join(figure_dir, f"attention_heatmap_example_{idx + 1}.png")
+        plt.savefig(plot_path, dpi=150)
+        plt.close()
+        print(f"Attention heatmap saved to: {plot_path}")
 
 def run_evaluation(
     model: Any,
@@ -216,6 +327,7 @@ def run_evaluation(
     batch_size: int = 16,
     figure_dir: str = "figures",
     device: Optional[torch.device] = None,
+    tokenizer: Any = None,
 ) -> Dict[str, float]:
     """Run full evaluation pipeline and save all required artifacts."""
     ensure_dir(output_dir)
@@ -244,7 +356,9 @@ def run_evaluation(
     correct_df.to_csv(os.path.join(output_dir, "correct_examples.csv"), index=False)
     incorrect_df.to_csv(os.path.join(output_dir, "incorrect_examples.csv"), index=False)
     plot_error_breakdown(df, figure_dir)
-
+    plot_confusion_matrix(preds, labels, figure_dir)
+    if tokenizer is not None:
+        plot_attention_heatmap(model, val_dataset, tokenizer, figure_dir)
     subj_df = subject_accuracy(df)
     subj_path = os.path.join(output_dir, "subject_accuracy.csv")
     subj_df.to_csv(subj_path, index=False)

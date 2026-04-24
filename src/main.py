@@ -21,11 +21,13 @@ matplotlib.use("Agg")  # Non-interactive backend for reproducible figure generat
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from src.eda import run_eda
 from src.data import build_datasets
 from src.evaluate import run_evaluation
 from src.model import DEFAULT_MODEL, get_model, get_tokenizer, resolve_model_name
 from src.train import run_training
 from src.utils import ensure_dir, get_device, set_seed
+from src.tokenization_report import run_tokenization_report
 
 
 def parse_args() -> argparse.Namespace:
@@ -38,14 +40,14 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=DEFAULT_MODEL,
         help=(
-            "Single model name/alias (distilbert, bert, distilbert-base-uncased, "
-            "bert-base-uncased) or comma-separated pair for comparison"
+            "Single model name/alias (distilbert, bert, lstm, distilbert-base-uncased, "
+            "bert-base-uncased) or a comma-separated list for comparison"
         ),
     )
     parser.add_argument(
         "--compare_models",
         action="store_true",
-        help="Run both distilbert-base-uncased and bert-base-uncased for direct comparison",
+        help="Run distilbert-base-uncased, bert-base-uncased and lstm for direct comparison",
     )
     parser.add_argument("--epochs", type=int, default=3, help="Number of training epochs")
     parser.add_argument("--batch_size", type=int, default=8, help="Per-device batch size")
@@ -73,7 +75,7 @@ def parse_args() -> argparse.Namespace:
 def resolve_and_validate_models(model_arg: str, compare_models: bool) -> List[str]:
     """Parse, resolve, and validate the final list of models to run."""
     if compare_models:
-        return ["distilbert-base-uncased", "bert-base-uncased"]
+        return ["distilbert-base-uncased", "bert-base-uncased", "lstm"]
 
     requested = [part.strip() for part in model_arg.split(",") if part.strip()]
     if not requested:
@@ -116,11 +118,13 @@ def save_model_comparison(results: List[Dict[str, Any]], output_dir: str, figure
     placeholder_payload = {
         "{{DISTILBERT_VAL_ACCURACY}}": None,
         "{{BERT_VAL_ACCURACY}}": None,
+        "{{LSTM_VAL_ACCURACY}}": None,
         "{{BEST_MODEL}}": None,
     }
     model_placeholder_map = {
         "distilbert-base-uncased": "{{DISTILBERT_VAL_ACCURACY}}",
         "bert-base-uncased": "{{BERT_VAL_ACCURACY}}",
+        "lstm": "{{LSTM_VAL_ACCURACY}}",
     }
     for row in results:
         placeholder_key = model_placeholder_map.get(row["model"])
@@ -145,9 +149,12 @@ def save_model_comparison(results: List[Dict[str, Any]], output_dir: str, figure
     )
 
     plt.figure(figsize=(9, 5))
-    colors = ["#1f77b4", "#ff7f0e", "#7f7f7f"]
-    plt.bar(plot_df["model"], plot_df["accuracy"], color=colors[: len(plot_df)])
-    plt.ylim(0, 1)
+    colors = ["#1f77b4", "#ff7f0e", "#7f7f7f", "#2ca02c"]
+    bars = plt.bar(plot_df["model"], plot_df["accuracy"], color=colors[: len(plot_df)])
+    for bar, acc in zip(bars, plot_df["accuracy"]):
+        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
+                 f"{acc:.2%}", ha="center", va="bottom", fontweight="bold")
+    plt.ylim(0, 1.1)
     plt.xlabel("Model Name")
     plt.ylabel("Accuracy")
     plt.title("Model Comparison: Validation Accuracy")
@@ -164,7 +171,7 @@ def run_single_model(
 ) -> Dict[str, Any]:
     """Run train+evaluate for one model and return summary metrics."""
     model_output_dir = args.output_dir if not multi_run else os.path.join(args.output_dir, model_name)
-    model_figure_dir = args.figure_dir if not multi_run else os.path.join(args.figure_dir, model_name)
+    model_figure_dir = os.path.join(args.figure_dir, model_name)
 
     ensure_dir(model_output_dir)
     ensure_dir(model_figure_dir)
@@ -195,12 +202,23 @@ def run_single_model(
         max_length=args.max_length,
     )
 
+    run_eda(
+        train_data=train_dataset.data,
+        val_data=val_dataset.data,
+        figure_dir=model_figure_dir,
+    )
+    run_tokenization_report(
+        train_data=train_dataset.data,
+        output_dir=model_output_dir,
+        figure_dir=os.path.join(model_figure_dir, "tokenization"),
+    )
     trainer = run_training(
         model=model,
         tokenizer=tokenizer,
         train_dataset=train_dataset,
         val_dataset=val_dataset,
         output_dir=model_output_dir,
+        figure_dir=model_figure_dir,
         num_epochs=args.epochs,
         batch_size=args.batch_size,
         learning_rate=args.learning_rate,
@@ -214,6 +232,7 @@ def run_single_model(
         batch_size=args.eval_batch_size,
         figure_dir=model_figure_dir,
         device=device,
+        tokenizer=tokenizer,
     )
 
     return {
@@ -290,3 +309,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
