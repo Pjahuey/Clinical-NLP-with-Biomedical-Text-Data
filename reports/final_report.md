@@ -60,6 +60,20 @@ The prediction distribution indicates a mild bias toward predicting D more often
 
 ![Prediction distribution](../figures/prediction_distribution.png)
 
+## Quick Advanced Analysis
+
+![Prediction distribution](../figures/prediction_distribution.png)
+
+![Accuracy by answer choice](../figures/accuracy_by_answer_choice.png)
+
+![Top and bottom subjects](../figures/top_bottom_subjects.png)
+
+- The model overpredicts answer choice D relative to the validation labels: 279 D predictions vs 196 true D labels.
+- Accuracy by true answer choice is highest for D at 35.7% and lowest for B at 28.1%.
+- Using `subject_accuracy.csv`, the strongest subjects are Psychiatry, Anaesthesia, ENT, Physiology, and Ophthalmology.
+- The weakest subjects are Orthopaedics, Skin, Microbiology, Pathology, and Radiology; very small n subjects should not be overinterpreted.
+- The representative incorrect examples suggest common issues with negation wording, dense clinical stems, and plausible medical distractors. See [error_analysis_table.md](error_analysis_table.md).
+
 ## Evaluation and Error Analysis
 Evaluation includes accuracy, macro precision, macro recall, and macro F1. In addition to aggregate metrics, prediction-level outputs enable analysis of representative successes and failures. Subject-level aggregation (`subject_accuracy.csv`) highlights uneven performance across medical domains and supports targeted follow-up experiments.
 
