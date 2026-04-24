@@ -37,6 +37,10 @@ def _validate_subset_sizes(train_size: int, val_size: int, train_total: int, val
             f"val_size ({val_size}) is larger than available validation examples ({val_total})."
         )
 
+def _clean_text(text: Any | None) -> str:
+    if text is None:
+        return ""
+    return str(text).strip()
 
 # ---------------------------------------------------------------------------
 # Dataset loader
@@ -47,6 +51,10 @@ def load_medmcqa(train_size: int = 5000, val_size: int = 1000) -> Tuple[Dataset,
     print(f"Loading MedMCQA dataset (train={train_size}, val={val_size})...")
     dataset = load_dataset("openlifescienceai/medmcqa")
 
+    required_splits = ["train", "validation"]
+    for split in required_splits:
+        if split not in dataset:
+            raise ValueError(f"Missing required dataset split: {split}")
     train_total = len(dataset["train"])
     val_total = len(dataset["validation"])
     _validate_subset_sizes(train_size, val_size, train_total, val_total)
@@ -65,9 +73,16 @@ def load_medmcqa(train_size: int = 5000, val_size: int = 1000) -> Tuple[Dataset,
 
 def _format_input(example: Dict[str, Any]) -> Tuple[str, List[str], int]:
     """Build four (question + option) strings from one MedMCQA example."""
-    question = example["question"]
-    options = [example["opa"], example["opb"], example["opc"], example["opd"]]
+    question = _clean_text(example.get("question"))
+    options = [
+        _clean_text(example.get("opa")),
+        _clean_text(example.get("opb")),
+        _clean_text(example.get("opc")),
+        _clean_text(example.get("opd")),
+    ]
     label = int(example["cop"])  # 0 → A, 1 → B, 2 → C, 3 → D
+    if len(options) != NUM_LABELS or any(opt == "" for opt in options):
+        raise ValueError("Invalid or missing answer choices in example")
     return question, options, label
 
 

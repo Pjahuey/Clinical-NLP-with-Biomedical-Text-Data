@@ -102,6 +102,22 @@ MedMCQA covers 21 medical subjects (anatomy, pathology, pharmacology, surgery, e
 - Default subset: 5,000 training + 1,000 validation samples (configurable)
 - Average question length: 12.7 words
 
+## Data Processing Details
+
+MedMCQA examples are tokenized as four (`question`, option) pairs:
+- (`question`, `opa`)
+- (`question`, `opb`)
+- (`question`, `opc`)
+- (`question`, `opd`)
+
+The correct answer label is stored in `cop`, where:
+- 0 = A
+- 1 = B
+- 2 = C
+- 3 = D
+
+In the current pipeline, preprocessing uses the dataset's `question` and answer choice fields (`opa`-`opd`) to build model inputs, and `cop` is read as the target label. Additional sanitization steps such as string normalization, whitespace trimming, or explicit validation of non-empty answer choices and label ranges are not currently documented as part of this preprocessing stage.
+
 ## Setup Instructions
 > Recommended Python version: **Python 3.12** 
 
