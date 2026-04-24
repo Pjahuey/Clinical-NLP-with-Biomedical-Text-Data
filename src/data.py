@@ -50,12 +50,11 @@ def load_medmcqa(train_size: int = 5000, val_size: int = 1000) -> Tuple[Dataset,
     """Load MedMCQA and return deterministic train/validation subsets."""
     print(f"Loading MedMCQA dataset (train={train_size}, val={val_size})...")
     dataset = load_dataset("openlifescienceai/medmcqa")
-  
-  required_splits = ["train", "validation"]
-for split in required_splits:
-    if split not in dataset:
-        raise ValueError(f"Missing required dataset split: {split}")
-  
+
+    required_splits = ["train", "validation"]
+    for split in required_splits:
+        if split not in dataset:
+            raise ValueError(f"Missing required dataset split: {split}")
     train_total = len(dataset["train"])
     val_total = len(dataset["validation"])
     _validate_subset_sizes(train_size, val_size, train_total, val_total)
