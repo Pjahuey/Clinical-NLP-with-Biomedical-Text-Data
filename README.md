@@ -104,11 +104,11 @@ MedMCQA covers 21 medical subjects (anatomy, pathology, pharmacology, surgery, e
 
 ## Data Processing Details
 
-MedMCQA examples are converted into four question-answer pairs:
-- question + opa
-- question + opb
-- question + opc
-- question + opd
+MedMCQA examples are tokenized as four (`question`, option) pairs:
+- (`question`, `opa`)
+- (`question`, `opb`)
+- (`question`, `opc`)
+- (`question`, `opd`)
 
 The correct answer label is stored in `cop`, where:
 - 0 = A
@@ -116,7 +116,7 @@ The correct answer label is stored in `cop`, where:
 - 2 = C
 - 3 = D
 
-Before tokenization, text fields are converted to strings and stripped of extra whitespace. The preprocessing pipeline also validates that each example contains four non-empty answer choices and a valid label before training.
+In the current pipeline, preprocessing uses the dataset's `question` and answer choice fields (`opa`-`opd`) to build model inputs, and `cop` is read as the target label. Additional sanitization steps such as string normalization, whitespace trimming, or explicit validation of non-empty answer choices and label ranges are not currently documented as part of this preprocessing stage.
 
 ## Setup Instructions
 > Recommended Python version: **Python 3.12** 
