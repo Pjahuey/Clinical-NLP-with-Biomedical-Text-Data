@@ -37,7 +37,7 @@ def _validate_subset_sizes(train_size: int, val_size: int, train_total: int, val
             f"val_size ({val_size}) is larger than available validation examples ({val_total})."
         )
 
-def _clean_text(text):
+def _clean_text(text: Any | None) -> str:
     if text is None:
         return ""
     return str(text).strip()
