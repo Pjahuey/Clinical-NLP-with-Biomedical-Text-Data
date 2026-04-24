@@ -74,19 +74,18 @@ def load_medmcqa(train_size: int = 5000, val_size: int = 1000) -> Tuple[Dataset,
 def _format_input(example: Dict[str, Any]) -> Tuple[str, List[str], int]:
     """Build four (question + option) strings from one MedMCQA example."""
     question = _clean_text(example.get("question"))
-
-options = [
-    _clean_text(example.get("opa")),
-    _clean_text(example.get("opb")),
-    _clean_text(example.get("opc")),
-    _clean_text(example.get("opd")),
-]
+    options = [
+        _clean_text(example.get("opa")),
+        _clean_text(example.get("opb")),
+        _clean_text(example.get("opc")),
+        _clean_text(example.get("opd")),
+    ]
     label = int(example["cop"])  # 0 → A, 1 → B, 2 → C, 3 → D
+    if len(options) != NUM_LABELS or any(opt == "" for opt in options):
+        raise ValueError("Invalid or missing answer choices in example")
     return question, options, label
 
-if len(options) != NUM_LABELS or any(opt == "" for opt in options):
-    raise ValueError("Invalid or missing answer choices in example")
-  
+
 # ---------------------------------------------------------------------------
 # PyTorch Dataset
 # ---------------------------------------------------------------------------
