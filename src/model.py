@@ -13,12 +13,15 @@ from typing import Dict
 
 from transformers import AutoModelForMultipleChoice, AutoTokenizer
 
+from src.lstm_model import LSTMMultipleChoice, get_lstm_tokenizer
+
 # Supported model identifiers
 SUPPORTED_MODELS: Dict[str, str] = {
     "distilbert": "distilbert-base-uncased",
     "bert": "bert-base-uncased",
     "distilbert-base-uncased": "distilbert-base-uncased",
     "bert-base-uncased": "bert-base-uncased",
+    "lstm": "lstm",
 }
 
 DEFAULT_MODEL = "distilbert-base-uncased"
@@ -42,6 +45,8 @@ def resolve_model_name(model_name: str) -> str:
 def get_tokenizer(model_name: str = DEFAULT_MODEL):
     """Load and return a Hugging Face tokenizer."""
     resolved_model = resolve_model_name(model_name)
+    if resolved_model == "lstm":
+        return get_lstm_tokenizer()
     print(f"Loading tokenizer: {resolved_model}")
     return AutoTokenizer.from_pretrained(resolved_model)
 
@@ -52,5 +57,11 @@ def get_model(model_name: str = DEFAULT_MODEL, num_labels: int = 4):
     classification (4-way: A/B/C/D).
     """
     resolved_model = resolve_model_name(model_name)
+    if resolved_model == "lstm":
+        print("Loading LSTM model (BiLSTM, 2 layers, hidden=256)")
+        return LSTMMultipleChoice(num_choices=num_labels)
     print(f"Loading model: {resolved_model}  (num_choices={num_labels})")
-    return AutoModelForMultipleChoice.from_pretrained(resolved_model)
+    return AutoModelForMultipleChoice.from_pretrained(
+        resolved_model, 
+        attn_implementation="eager"
+    )

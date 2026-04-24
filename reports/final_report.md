@@ -1,7 +1,7 @@
 # Final Report: Clinical NLP with Biomedical Text Data
 
 ## Abstract
-This project presents a supervised multi-class text classification NLP algorithm for biomedical question understanding using MedMCQA. We frame multiple-choice medical question answering as a four-class prediction task over answer labels A, B, C, and D. We fine-tune transformer models (DistilBERT and BERT) using deterministic train/validation subsets, standardized tokenization, and reproducible experiment settings. The pipeline produces quantitative metrics, prediction-level artifacts, subject-wise analysis, and comparison outputs to support transparent evaluation. Results show that pretrained transformer encoders provide practical performance for biomedical multiple-choice classification while preserving a modular workflow suitable for further clinical NLP experimentation.
+This project presents a supervised multi-class text classification NLP algorithm for biomedical question understanding using MedMCQA. We frame multiple-choice medical question answering as a four-class prediction task over answer labels A, B, C, and D. We fine-tune transformer models (DistilBERT, BERT, LSTM) using deterministic train/validation subsets, standardized tokenization, and reproducible experiment settings. The pipeline produces quantitative metrics, prediction-level artifacts, subject-wise analysis, and comparison outputs to support transparent evaluation. Results show that pretrained transformer encoders provide practical performance for biomedical multiple-choice classification while preserving a modular workflow suitable for further clinical NLP experimentation.
 
 ## Introduction
 Biomedical NLP systems are increasingly used to support educational and clinical reasoning workflows. Medical multiple-choice question answering is a useful proxy task for measuring domain-specific language understanding, factual recall, and contextual reasoning. In this project, we address MedMCQA as a text classification problem rather than a generative QA task. This framing enables reliable supervised learning and clear metric interpretation.
@@ -32,8 +32,9 @@ Each example is transformed into four (question, option) pairs and tokenized wit
 ### Models
 - `distilbert-base-uncased`
 - `bert-base-uncased`
+- `lstm`
 
-Both are trained through `AutoModelForMultipleChoice` for fair architectural comparison under consistent hyperparameters.
+The transformer models are trained through `AutoModelForMultipleChoice`, while the LSTM baseline uses a compatible custom multiple-choice head for side-by-side comparison under shared data splits.
 
 ### Training and Reproducibility
 Training uses the Hugging Face `Trainer` API with deterministic seeding for Python, NumPy, and PyTorch. Configuration is saved to `outputs/config.json` at runtime. The pipeline validates model names and subset sizes, and automatically creates output folders.
@@ -47,9 +48,9 @@ Each run produces:
 - `subject_accuracy.csv` (when subject metadata is present)
 - `config.json`
 
-When two models are run, the pipeline also saves:
+When multiple models are run, the pipeline also saves:
 - `model_comparison.csv`
-- `figures/model_comparison_accuracy.png`
+- `figures/model_comparison.png`
 
 These artifacts support both headline reporting and detailed inspection of model behavior.
 
@@ -62,11 +63,11 @@ Common observed error patterns in this setup include:
 - specialty-specific terminology not strongly represented in the selected training subset.
 
 ## Discussion
-This project demonstrates that biomedical multiple-choice QA can be implemented as a clear text classification workflow with reusable components and reproducible outputs. The approach balances practicality and interpretability: each prediction corresponds to one of four explicit classes, and outputs are structured for auditing. Model comparison between DistilBERT and BERT supports discussion of accuracy-versus-efficiency trade-offs relevant to educational and potential downstream clinical workflows.
+This project demonstrates that biomedical multiple-choice QA can be implemented as a clear text classification workflow with reusable components and reproducible outputs. The approach balances practicality and interpretability: each prediction corresponds to one of four explicit classes, and outputs are structured for auditing. Comparing transformer models against an LSTM baseline supports discussion of the trade-off between pretrained contextual representations and a simpler recurrent architecture.
 
 ## Limitations
 - Current experiments rely on configurable subsets rather than full MedMCQA training scale.
-- The implementation emphasizes transformer-based methods; recurrent baseline experiments are not included in this repository version.
+- The LSTM baseline provides a useful comparison point, but it is not expected to match pretrained transformer performance.
 - Metrics are validation-focused and do not include full held-out test benchmarking.
 - Clinical deployment conclusions are limited because this is a course project benchmark study, not a patient-care system validation.
 
@@ -87,3 +88,4 @@ The repository now provides a polished, submission-ready biomedical NLP project 
 5. Lhoest, Q., et al. (2021). Datasets: A Community Library for Natural Language Processing. *ACL Demo*.
 6. Hugging Face. MedMCQA dataset card. https://huggingface.co/datasets/openlifescienceai/medmcqa
 7. Hugging Face Transformers documentation. https://huggingface.co/docs/transformers
+
